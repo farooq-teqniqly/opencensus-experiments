@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  taskapi:
+    ports:
+      - 80
+    environment:
+      - FLASK_RUN_PORT=80
+    build:
+      context: ./py/taskapi/
+      dockerfile: Dockerfile
+  taskapiclient:
+    environment:
+      - TASK_API_BASE_URL=http://taskapi:80
+    depends_on:
+      - taskapi
+    build:
+      context: ./py/taskapiclient/
+      dockerfile: Dockerfile

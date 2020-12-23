@@ -1,12 +1,16 @@
 import datetime
 import json
 import os
+import logging
 
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 
 from task_management import TaskRepository, TaskFactory
 
+log_level = os.getenv("LOG_LEVEL", "INFO")
+logging.basicConfig(level=log_level)
+logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 app = Flask(__name__)
 repo = TaskRepository()
@@ -49,10 +53,5 @@ def complete_task(owner, task_id):
     return jsonify({}), 204
 
 
-port_str = os.getenv("FLASK_RUN_PORT")
-port = 5000
-
-if port_str:
-    port = int(port_str)
-
-app.run(port=port, host="0.0.0.0")
+port_str = os.getenv("FLASK_RUN_PORT", "5000")
+app.run(port=int(port_str), host="0.0.0.0")
