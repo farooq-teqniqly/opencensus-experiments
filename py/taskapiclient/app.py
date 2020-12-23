@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid4
+from time import sleep
 
 import requests
 from dotenv import load_dotenv
@@ -55,6 +56,7 @@ def main():
             })
 
         logger.info(f"Task added.\n{response.json()}")
+        sleep(task_run_interval)
 
     logger.info(f"All tasks for {task_owner}:")
     response = requests.get(f"{task_api_base_url}/tasks/{task_owner}")
