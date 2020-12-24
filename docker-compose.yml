@@ -22,11 +22,12 @@ services:
   taskapiclient:
     environment:
       - TASK_API_BASE_URL=http://taskapi:80
-      - APPLICATIONINSIGHTS_KEY=ad44edfb-6056-4efc-ba29-fa17fea1b422
+      - APPLICATIONINSIGHTS_KEY=499e479a-5879-4c70-96e4-bbb2df9fc32b
       - LOG_LEVEL=DEBUG
       - AUTH_API_BASE_URL=http://authapi:80
-      - CLIENT_ID="badapp"
+      - CLIENT_ID="taskapiclient"
       - SECRET="foobar"
+      - RUN_INTERVAL=2
     depends_on:
       - taskapi
     build:

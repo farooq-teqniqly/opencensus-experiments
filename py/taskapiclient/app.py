@@ -9,10 +9,13 @@ from time import sleep
 import requests
 from dotenv import load_dotenv
 from opencensus.ext.azure.log_exporter import AzureLogHandler
+from opencensus.trace.samplers import AlwaysOnSampler
+from opencensus.trace.tracer import Tracer
+
 from exceptions import HttpException
 
 
-def main(logger):
+def main(logger, tr: Tracer):
     app_insights_key = os.getenv("APPLICATIONINSIGHTS_KEY")
 
     if app_insights_key:
@@ -52,19 +55,20 @@ def main(logger):
         "secret": secret
     }
 
-    response = requests.post(
-        f"{auth_api_base_url}/token",
-        json.dumps(token_request))
+    with tr.span(name="main_auth"):
+        response = requests.post(
+            f"{auth_api_base_url}/token",
+            json.dumps(token_request))
 
-    if response.status_code >= 400:
-        props = {
-            "custom_dimensions": {
-                "status_code": response.status_code,
-                "reason": response.reason
+        if response.status_code >= 400:
+            props = {
+                "custom_dimensions": {
+                    "status_code": response.status_code,
+                    "reason": response.reason
+                }
             }
-        }
 
-        raise HttpException("Could not get token.", props)
+            raise HttpException("Could not get token.", props)
 
     logger.info("Token acquired.")
 
@@ -86,9 +90,30 @@ def main(logger):
             "owner": task_owner
         }
 
-        response = requests.post(
-            f"{task_api_base_url}/tasks",
-            json.dumps(task),
+        with tr.span(name="main_posttask"):
+            response = requests.post(
+                f"{task_api_base_url}/tasks",
+                json.dumps(task),
+                headers=task_api_request_header)
+
+            if response.status_code >= 400:
+                props = {
+                    "custom_dimensions": {
+                        "status_code": response.status_code,
+                        "reason": response.reason
+                    }
+                }
+
+                raise HttpException("Could not add task.", props)
+
+        logger.debug(f"Task added.")
+        sleep(int(task_run_interval_str))
+
+    logger.info(f"All tasks for {task_owner}:")
+
+    with tr.span(name="main_gettasks"):
+        response = requests.get(
+            f"{task_api_base_url}/tasks/{task_owner}",
             headers=task_api_request_header)
 
         if response.status_code >= 400:
@@ -99,25 +124,7 @@ def main(logger):
                 }
             }
 
-            raise HttpException("Could not add task.", props)
-
-        logger.debug(f"Task added.")
-        sleep(int(task_run_interval_str))
-
-    logger.info(f"All tasks for {task_owner}:")
-    response = requests.get(
-        f"{task_api_base_url}/tasks/{task_owner}",
-        headers=task_api_request_header)
-
-    if response.status_code >= 400:
-        props = {
-            "custom_dimensions": {
-                "status_code": response.status_code,
-                "reason": response.reason
-            }
-        }
-
-        raise HttpException(f"Could not get tasks for {task_owner}.", props)
+            raise HttpException(f"Could not get tasks for {task_owner}.", props)
 
     props = {
         "custom_dimensions": {
@@ -134,7 +141,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=log_level)
     log = logging.getLogger(__name__)
 
-    try:
-        main(log)
-    except HttpException as ex:
-        log.exception(ex, extra=ex.props)
+    tr = Tracer(sampler=AlwaysOnSampler())
+
+    with tr.span(name="main"):
+        try:
+            main(log, tr)
+        except HttpException as ex:
+            log.exception(ex, extra=ex.props)
