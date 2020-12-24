@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, Generator, Union
 
+from pymysql import Connection
+
 
 @dataclass
 class Task:
@@ -51,12 +53,15 @@ class TaskFactory:
 
 
 class TaskRepository:
-    def __init__(self):
-        self.tasks: Dict[str, Task] = {}
+    def __init__(self, db: Connection):
+        self.db = db
 
     def add_task(self, task: Task):
         task.id = str(uuid.uuid4())
-        self.tasks.update({task.id: task})
+
+        with self.db.cursor() as cursor:
+            sql = "INSERT INTO tasks VALUES (%s, %s, %s, '%s', '%s', )"
+
         return task
 
     def get_tasks(self, owner: uuid, include_closed_tasks=False) \

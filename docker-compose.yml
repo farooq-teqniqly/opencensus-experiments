@@ -23,6 +23,10 @@ services:
       - 80
     environment:
       - FLASK_RUN_PORT=80
+      - APPLICATIONINSIGHTS_KEY=499e479a-5879-4c70-96e4-bbb2df9fc32b
+      - DB_HOST=db
+      - DB_USER=mysqluser
+      - DB_USER_PASSWORD=passw0rd!
     depends_on:
       - authapi
       - db
