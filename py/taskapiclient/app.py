@@ -9,6 +9,7 @@ from time import sleep
 import requests
 from dotenv import load_dotenv
 from opencensus.ext.azure.log_exporter import AzureLogHandler
+from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.trace.samplers import AlwaysOnSampler
 from opencensus.trace.tracer import Tracer
 
@@ -16,14 +17,6 @@ from exceptions import HttpException
 
 
 def main(logger, tr: Tracer):
-    app_insights_key = os.getenv("APPLICATIONINSIGHTS_KEY")
-
-    if app_insights_key:
-        logger.addHandler(AzureLogHandler(
-            connection_string=f"InstrumentationKey={app_insights_key}"))
-
-        logger.info("Application Insights logging enabled.")
-
     task_api_base_url = os.getenv("TASK_API_BASE_URL")
 
     if not task_api_base_url:
@@ -141,7 +134,18 @@ if __name__ == "__main__":
     logging.basicConfig(level=log_level)
     log = logging.getLogger(__name__)
 
-    tr = Tracer(sampler=AlwaysOnSampler())
+    app_insights_key = os.getenv("APPLICATIONINSIGHTS_KEY")
+
+    if not app_insights_key:
+        raise ValueError("APPLICATIONINSIGHTS_KEY environment variable not set!")
+
+    log.addHandler(AzureLogHandler(
+        connection_string=f"InstrumentationKey={app_insights_key}"))
+
+    tr = Tracer(
+        exporter=AzureExporter(
+            connection_string=f"InstrumentationKey={app_insights_key}"),
+        sampler=AlwaysOnSampler())
 
     with tr.span(name="main"):
         try:
