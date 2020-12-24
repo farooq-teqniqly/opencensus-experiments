@@ -10,6 +10,7 @@ import requests
 from dotenv import load_dotenv
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 from opencensus.ext.azure.trace_exporter import AzureExporter
+from opencensus.trace import config_integration
 from opencensus.trace.samplers import AlwaysOnSampler
 from opencensus.trace.tracer import Tracer
 
@@ -141,6 +142,8 @@ if __name__ == "__main__":
 
     log.addHandler(AzureLogHandler(
         connection_string=f"InstrumentationKey={app_insights_key}"))
+
+    config_integration.trace_integrations(["requests"])
 
     tr = Tracer(
         exporter=AzureExporter(
