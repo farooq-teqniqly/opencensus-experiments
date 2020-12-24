@@ -9,14 +9,10 @@ from time import sleep
 import requests
 from dotenv import load_dotenv
 from opencensus.ext.azure.log_exporter import AzureLogHandler
+from exceptions import HttpException
 
 
-def main():
-    load_dotenv(override=True)
-    log_level = os.getenv("LOG_LEVEL", "INFO")
-    logging.basicConfig(level=log_level)
-    logger = logging.getLogger(__name__)
-
+def main(logger):
     app_insights_key = os.getenv("APPLICATIONINSIGHTS_KEY")
 
     if app_insights_key:
@@ -61,13 +57,14 @@ def main():
         json.dumps(token_request))
 
     if response.status_code >= 400:
-        data = {
-            "status_code": response.status_code,
-            "reason": response.reason
+        props = {
+            "custom_dimensions": {
+                "status_code": response.status_code,
+                "reason": response.reason
+            }
         }
 
-        logger.exception(data)
-        raise Exception(data)
+        raise HttpException("Could not get token.", props)
 
     logger.info("Token acquired.")
 
@@ -95,13 +92,14 @@ def main():
             headers=task_api_request_header)
 
         if response.status_code >= 400:
-            data = {
-                "status_code": response.status_code,
-                "reason": response.reason
+            props = {
+                "custom_dimensions": {
+                    "status_code": response.status_code,
+                    "reason": response.reason
+                }
             }
 
-            logger.exception(data)
-            raise Exception(data)
+            raise HttpException("Could not add task.", props)
 
         logger.debug(f"Task added.")
         sleep(int(task_run_interval_str))
@@ -112,13 +110,14 @@ def main():
         headers=task_api_request_header)
 
     if response.status_code >= 400:
-        data = {
-            "status_code": response.status_code,
-            "reason": response.reason
+        props = {
+            "custom_dimensions": {
+                "status_code": response.status_code,
+                "reason": response.reason
+            }
         }
 
-        logger.exception(data)
-        raise Exception(data)
+        raise HttpException(f"Could not get tasks for {task_owner}.", props)
 
     props = {
         "custom_dimensions": {
@@ -130,4 +129,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    load_dotenv(override=True)
+    log_level = os.getenv("LOG_LEVEL", "INFO")
+    logging.basicConfig(level=log_level)
+    log = logging.getLogger(__name__)
+
+    try:
+        main(log)
+    except HttpException as ex:
+        log.exception(ex, extra=ex.props)
