@@ -34,6 +34,49 @@ def main():
     stop_after_str = os.getenv("STOP_AFTER", "60")
     task_owner = os.getenv("TASK_OWNER", "default-user")
 
+    logger.info("Acquiring token.")
+
+    auth_api_base_url = os.getenv("AUTH_API_BASE_URL")
+
+    if not auth_api_base_url:
+        raise ValueError("AUTH_API_BASE_URL environment variable not set!")
+
+    client_id = os.getenv("CLIENT_ID")
+
+    if not client_id:
+        raise ValueError("CLIENT_ID environment variable not set!")
+
+    secret = os.getenv("SECRET")
+
+    if not secret:
+        raise ValueError("SECRET environment variable not set!")
+
+    token_request = {
+        "client_id": client_id,
+        "secret": secret
+    }
+
+    response = requests.post(
+        f"{auth_api_base_url}/token",
+        json.dumps(token_request))
+
+    if response.status_code >= 400:
+        data = {
+            "status_code": response.status_code,
+            "reason": response.reason
+        }
+
+        logger.exception(data)
+        raise Exception(data)
+
+    logger.info("Token acquired.")
+
+    token_response = json.loads(response.text)
+
+    task_api_request_header = {
+        "Authorization": token_response["value"]
+    }
+
     start_time = datetime.now()
 
     while datetime.now() - start_time < timedelta(seconds=int(stop_after_str)):
@@ -48,25 +91,34 @@ def main():
 
         response = requests.post(
             f"{task_api_base_url}/tasks",
-            json.dumps(task))
+            json.dumps(task),
+            headers=task_api_request_header)
 
         if response.status_code >= 400:
-            raise Exception({
+            data = {
                 "status_code": response.status_code,
                 "reason": response.reason
-            })
+            }
+
+            logger.exception(data)
+            raise Exception(data)
 
         logger.debug(f"Task added.")
         sleep(int(task_run_interval_str))
 
     logger.info(f"All tasks for {task_owner}:")
-    response = requests.get(f"{task_api_base_url}/tasks/{task_owner}")
+    response = requests.get(
+        f"{task_api_base_url}/tasks/{task_owner}",
+        headers=task_api_request_header)
 
     if response.status_code >= 400:
-        raise Exception({
+        data = {
             "status_code": response.status_code,
             "reason": response.reason
-        })
+        }
+
+        logger.exception(data)
+        raise Exception(data)
 
     props = {
         "custom_dimensions": {
