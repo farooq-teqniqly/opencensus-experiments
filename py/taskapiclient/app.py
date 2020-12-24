@@ -8,13 +8,22 @@ from time import sleep
 
 import requests
 from dotenv import load_dotenv
+from opencensus.ext.azure.log_exporter import AzureLogHandler
 
 
 def main():
+    load_dotenv(override=True)
     log_level = os.getenv("LOG_LEVEL", "INFO")
     logging.basicConfig(level=log_level)
     logger = logging.getLogger(__name__)
-    load_dotenv(override=True)
+
+    app_insights_key = os.getenv("APPLICATIONINSIGHTS_KEY")
+
+    if app_insights_key:
+        logger.addHandler(AzureLogHandler(
+            connection_string=f"InstrumentationKey={app_insights_key}"))
+
+        logger.info("Application Insights logging enabled.")
 
     task_api_base_url = os.getenv("TASK_API_BASE_URL")
 
@@ -47,7 +56,7 @@ def main():
                 "reason": response.reason
             })
 
-        logger.info(f"Task added.\n{response.json()}")
+        logger.debug(f"Task added.")
         sleep(int(task_run_interval_str))
 
     logger.info(f"All tasks for {task_owner}:")
@@ -59,7 +68,13 @@ def main():
             "reason": response.reason
         })
 
-    logger.info(response.json())
+    props = {
+        "custom_dimensions": {
+            "tasks": str(response.json())
+        }
+    }
+
+    logger.debug(f"All tasks for {task_owner}.", extra=props)
 
 
 if __name__ == "__main__":

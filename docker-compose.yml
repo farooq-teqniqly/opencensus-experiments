@@ -11,6 +11,8 @@ services:
   taskapiclient:
     environment:
       - TASK_API_BASE_URL=http://taskapi:80
+      - APPLICATIONINSIGHTS_KEY=ad44edfb-6056-4efc-ba29-fa17fea1b422
+      - LOG_LEVEL=DEBUG
     depends_on:
       - taskapi
     build:
